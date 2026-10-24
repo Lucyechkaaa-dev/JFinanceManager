@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    # Fresh database file per Spring test context.
+    url: jdbc:sqlite:target/jfinance-test-${random.uuid}.db?journal_mode=WAL&busy_timeout=5000&foreign_keys=true
+
+jfinance:
+  admin:
+    username: admin
+    password: Admin12345
+
+logging:
+  file:
+    name: target/test-logs/jfinance.log
+  level:
+    io.github.lucyechkaaa.jfinance: INFO
