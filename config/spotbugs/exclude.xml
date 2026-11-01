@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+		xmlns="https://github.com/spotbugs/filter/3.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/3.1.0/spotbugs/etc/findbugsfilter.xsd">
+	<!--
+		Spring beans and JPA entities are shared by design (dependency injection, managed
+		associations). "Exposed internal representation" warnings are false positives for them.
+	-->
+	<Match>
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+	</Match>
+	<!--
+		JPA entities validate arguments in constructors, but cannot be final (Hibernate creates
+		lazy-loading proxies by subclassing them), so the finalizer-attack mitigation does not apply.
+	-->
+	<Match>
+		<Bug pattern="CT_CONSTRUCTOR_THROW"/>
+		<Or>
+			<Class name="io.github.lucyechkaaa.jfinance.user.User"/>
+			<Class name="io.github.lucyechkaaa.jfinance.account.Account"/>
+			<Class name="io.github.lucyechkaaa.jfinance.transaction.FinancialTransaction"/>
+			<Class name="io.github.lucyechkaaa.jfinance.audit.AuditEntry"/>
+		</Or>
+	</Match>
+</FindBugsFilter>
