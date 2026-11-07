@@ -23,6 +23,8 @@ import tools.jackson.databind.JsonNode;
 /** End-to-end money flows over HTTP. Fixed test rates: 1 USD = 40 UAH, 1 EUR = 50 UAH. */
 class MoneyFlowIntegrationTest extends IntegrationTest {
 
+	private static final int MAX_DESCRIPTION_LENGTH = 255;
+
 	private MockHttpSession admin;
 	private String alice;
 	private MockHttpSession aliceSession;
@@ -56,6 +58,36 @@ class MoneyFlowIntegrationTest extends IntegrationTest {
 
 		assertThat(balance(aliceSession, "UAH")).isEqualByComparingTo("749.50");
 		assertThat(balance(bobSession, "UAH")).isEqualByComparingTo("250.50");
+	}
+
+	@Test
+	void transferDescriptionIsStoredAndReadBackUnchanged() throws Exception {
+		String description = "Оплата за квартиру №5, \"листопад\"";
+		Map<String, String> body = new HashMap<>(uah(bob, "10"));
+		body.put("description", description);
+
+		transfer(aliceSession, body)
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.description").value(description));
+
+		mvc.perform(get("/api/transactions").session(bobSession))
+				.andExpect(jsonPath("$[0].description").value(description));
+	}
+
+	@Test
+	void transferWithoutDescriptionHasNoDescription() throws Exception {
+		transfer(aliceSession, uah(bob, "10"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.description").doesNotExist());
+	}
+
+	@Test
+	void tooLongDescriptionIsRejected() throws Exception {
+		Map<String, String> body = new HashMap<>(uah(bob, "10"));
+		body.put("description", "x".repeat(MAX_DESCRIPTION_LENGTH + 1));
+
+		transfer(aliceSession, body).andExpect(status().isBadRequest());
+		assertThat(balance(aliceSession, "UAH")).isEqualByComparingTo("1000.00");
 	}
 
 	@Test
