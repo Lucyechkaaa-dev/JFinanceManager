@@ -11,9 +11,7 @@ import io.github.lucyechkaaa.jfinance.exchange.CurrencyConverter;
 import io.github.lucyechkaaa.jfinance.transaction.dto.TransactionView;
 import io.github.lucyechkaaa.jfinance.user.User;
 import io.github.lucyechkaaa.jfinance.user.UserService;
-import java.math.BigDecimal;
 import java.time.Clock;
-import java.util.Currency;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,50 +46,60 @@ public class TransferService {
 
 	/**
 	 * Transfers money to another user, or exchanges currency between the sender's own accounts
-	 * when {@code recipientUsername} is the sender.
-	 *
-	 * @param amount amount to debit, in {@code fromCurrency}
+	 * when the recipient is the sender.
 	 */
 	@Transactional
-	public TransactionView transfer(
-			String senderUsername,
-			Currency fromCurrency,
-			String recipientUsername,
-			Currency toCurrency,
-			BigDecimal amount,
-			String description) {
-		User sender = userService.getActiveUser(senderUsername);
+	public TransactionView transfer(TransferCommand command) {
+		User sender = userService.getActiveUser(command.senderUsername());
+		User recipient = requireActiveRecipient(command.recipientUsername());
+		Money debit = requirePositive(Money.of(command.amount(), command.fromCurrency()));
+		Account source = accountService.getFor(sender, command.fromCurrency());
+		Account target = accountService.getFor(recipient, command.toCurrency());
+		if (source.getId().equals(target.getId())) {
+			throw new BusinessRuleException("Source and target account must differ");
+		}
+
+		Conversion conversion = currencyConverter.convert(debit, command.toCurrency());
+		source.debit(debit);
+		target.credit(conversion.result());
+
+		TransactionType type = typeOf(sender, recipient);
+		FinancialTransaction tx = transactionRepository.save(FinancialTransaction.movement(
+				type, source, debit, target, conversion.result(), conversion.rate(),
+				command.description(), sender, clock.instant()));
+		audit(tx, conversion, recipient);
+		return TransactionView.from(tx);
+	}
+
+	private User requireActiveRecipient(String recipientUsername) {
 		User recipient = userService.getByUsername(recipientUsername);
 		if (!recipient.isActive()) {
 			throw new BusinessRuleException(
 					"Recipient '%s' is blocked".formatted(recipient.getUsername()));
 		}
-		Money debit = Money.of(amount, fromCurrency);
-		if (!debit.isPositive()) {
+		return recipient;
+	}
+
+	private static Money requirePositive(Money amount) {
+		if (!amount.isPositive()) {
 			throw new BusinessRuleException("Amount must be positive");
 		}
+		return amount;
+	}
 
-		Account source = accountService.getFor(sender, fromCurrency);
-		Account target = accountService.getFor(recipient, toCurrency);
-		if (source.getId().equals(target.getId())) {
-			throw new BusinessRuleException("Source and target account must differ");
-		}
-		TransactionType type = sender.getId().equals(recipient.getId())
+	private static TransactionType typeOf(User sender, User recipient) {
+		return sender.getId().equals(recipient.getId())
 				? TransactionType.EXCHANGE
 				: TransactionType.TRANSFER;
+	}
 
-		Conversion conversion = currencyConverter.convert(debit, toCurrency);
-		source.debit(debit);
-		target.credit(conversion.result());
-
-		FinancialTransaction tx = transactionRepository.save(FinancialTransaction.movement(
-				type, source, debit, target, conversion.result(), conversion.rate(),
-				description, sender, clock.instant()));
-		auditService.success(sender.getUsername(),
-				type == TransactionType.EXCHANGE ? AuditAction.EXCHANGE : AuditAction.TRANSFER,
-				"tx:" + tx.getId(),
-				"%s -> %s %s%s".formatted(debit, recipient.getUsername(), conversion.result(),
-						conversion.isCrossCurrency() ? " @ " + conversion.rate() : ""));
-		return TransactionView.from(tx);
+	private void audit(FinancialTransaction tx, Conversion conversion, User recipient) {
+		AuditAction action = tx.getType() == TransactionType.EXCHANGE
+				? AuditAction.EXCHANGE
+				: AuditAction.TRANSFER;
+		String rate = conversion.isCrossCurrency() ? " @ " + conversion.rate() : "";
+		auditService.success(tx.getInitiatedBy().getUsername(), action, "tx:" + tx.getId(),
+				"%s -> %s %s%s".formatted(conversion.source(), recipient.getUsername(),
+						conversion.result(), rate));
 	}
 }

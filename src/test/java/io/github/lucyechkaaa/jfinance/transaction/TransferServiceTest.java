@@ -77,7 +77,7 @@ class TransferServiceTest {
 				.thenReturn(new Conversion(Money.of("40", "UAH"), Money.of("40", "UAH"), null));
 		when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		TransactionView view = service.transfer("alice", UAH, "bob", UAH, new BigDecimal("40"), null);
+		TransactionView view = service.transfer(command(UAH, new BigDecimal("40")));
 
 		assertThat(view.type()).isEqualTo(TransactionType.TRANSFER);
 		assertThat(aliceUah.getBalance()).isEqualTo(Money.of("60", "UAH"));
@@ -93,7 +93,7 @@ class TransferServiceTest {
 				Money.of("80", "UAH"), Money.of("2", "USD"), new BigDecimal("0.025")));
 		when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-		TransactionView view = service.transfer("alice", UAH, "bob", USD, new BigDecimal("80"), null);
+		TransactionView view = service.transfer(command(USD, new BigDecimal("80")));
 
 		assertThat(bobUsd.getBalance()).isEqualTo(Money.of("2", "USD"));
 		assertThat(view.exchangeRate()).isEqualByComparingTo("0.025");
@@ -108,7 +108,7 @@ class TransferServiceTest {
 		});
 
 		BigDecimal tooMuch = new BigDecimal("100.01");
-		assertThatThrownBy(() -> service.transfer("alice", UAH, "bob", UAH, tooMuch, null))
+		assertThatThrownBy(() -> service.transfer(command(UAH, tooMuch)))
 				.isInstanceOf(InsufficientFundsException.class);
 		verify(transactionRepository, never()).save(any());
 		assertThat(bobUah.getBalance()).isEqualTo(Money.zero(UAH));
@@ -119,7 +119,7 @@ class TransferServiceTest {
 		when(userService.getActiveUser("alice"))
 				.thenThrow(new ForbiddenOperationException("blocked"));
 
-		assertThatThrownBy(() -> service.transfer("alice", UAH, "bob", UAH, BigDecimal.ONE, null))
+		assertThatThrownBy(() -> service.transfer(command(UAH, BigDecimal.ONE)))
 				.isInstanceOf(ForbiddenOperationException.class);
 	}
 
@@ -129,9 +129,13 @@ class TransferServiceTest {
 		bob.changeStatus(UserStatus.BLOCKED);
 		when(userService.getByUsername("bob")).thenReturn(bob);
 
-		assertThatThrownBy(() -> service.transfer("alice", UAH, "bob", UAH, BigDecimal.ONE, null))
+		assertThatThrownBy(() -> service.transfer(command(UAH, BigDecimal.ONE)))
 				.isInstanceOf(BusinessRuleException.class)
 				.hasMessageContaining("blocked");
+	}
+
+	private static TransferCommand command(Currency toCurrency, BigDecimal amount) {
+		return new TransferCommand("alice", UAH, "bob", toCurrency, amount, null);
 	}
 
 	private void givenUsersAndAccounts(Account recipientAccount) {
