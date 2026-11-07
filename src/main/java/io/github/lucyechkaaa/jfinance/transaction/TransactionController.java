@@ -51,7 +51,8 @@ public class TransactionController {
 	public TransactionView transfer(
 			@Valid @RequestBody TransferRequest request, Principal principal) {
 		return transferService.transfer(principal.getName(), request.fromCurrency(),
-				request.toUsername(), request.effectiveToCurrency(), request.amount());
+				request.toUsername(), request.effectiveToCurrency(), request.amount(),
+				request.description());
 	}
 
 	/** Current user's transactions in the date range (default: last 30 days), newest first. */

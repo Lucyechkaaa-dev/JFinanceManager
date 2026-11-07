@@ -21,6 +21,7 @@ public record TransactionView(
 		String toUsername,
 		Money credit,
 		BigDecimal exchangeRate,
+		String description,
 		Long reversalOfId,
 		String initiatedBy,
 		Instant createdAt) {
@@ -37,6 +38,7 @@ public record TransactionView(
 				tx.getTargetAccount().map(a -> a.getOwner().getUsername()).orElse(null),
 				tx.getCredit().orElse(null),
 				tx.getExchangeRate().orElse(null),
+				tx.getDescription().orElse(null),
 				tx.getReversalOf().map(FinancialTransaction::getId).orElse(null),
 				tx.getInitiatedBy().getUsername(),
 				tx.getCreatedAt());

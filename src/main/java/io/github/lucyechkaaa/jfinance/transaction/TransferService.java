@@ -58,7 +58,8 @@ public class TransferService {
 			Currency fromCurrency,
 			String recipientUsername,
 			Currency toCurrency,
-			BigDecimal amount) {
+			BigDecimal amount,
+			String description) {
 		User sender = userService.getActiveUser(senderUsername);
 		User recipient = userService.getByUsername(recipientUsername);
 		if (!recipient.isActive()) {
@@ -85,7 +86,7 @@ public class TransferService {
 
 		FinancialTransaction tx = transactionRepository.save(FinancialTransaction.movement(
 				type, source, debit, target, conversion.result(), conversion.rate(),
-				sender, clock.instant()));
+				description, sender, clock.instant()));
 		auditService.success(sender.getUsername(),
 				type == TransactionType.EXCHANGE ? AuditAction.EXCHANGE : AuditAction.TRANSFER,
 				"tx:" + tx.getId(),

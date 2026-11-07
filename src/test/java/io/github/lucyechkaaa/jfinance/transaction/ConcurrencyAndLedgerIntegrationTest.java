@@ -58,7 +58,7 @@ class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 			start.await();
 			try {
 				transferService.transfer(sender.getUsername(), UAH, recipient.getUsername(), UAH,
-						new BigDecimal("10.00"));
+						new BigDecimal("10.00"), null);
 				return true;
 			} catch (InsufficientFundsException ex) {
 				return false;
