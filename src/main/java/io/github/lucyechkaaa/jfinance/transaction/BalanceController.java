@@ -46,6 +46,7 @@ public class BalanceController {
 	}
 
 	private BalanceReport report(Account account) {
-		return BalanceReport.of(account.getId(), account.getBalance(), calculator.calculate(account));
+		return BalanceReport.of(
+				account.getId(), account.getBalance(), calculator.calculate(account));
 	}
 }
