@@ -35,6 +35,9 @@ import org.hibernate.annotations.Immutable;
 @Table(name = "transactions")
 public class FinancialTransaction {
 
+	/** Maximum length of the free-text description. */
+	public static final int MAX_DESCRIPTION_LENGTH = 255;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	// SQLite AUTOINCREMENT requires the exact column type INTEGER.
@@ -69,6 +72,9 @@ public class FinancialTransaction {
 	@Column(name = "exchange_rate", length = 32)
 	private BigDecimal exchangeRate;
 
+	@Column(length = MAX_DESCRIPTION_LENGTH)
+	private String description;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "reversal_of_id")
 	private FinancialTransaction reversalOf;
@@ -102,6 +108,7 @@ public class FinancialTransaction {
 	 * Creates a TRANSFER or EXCHANGE record.
 	 *
 	 * @param exchangeRate rate applied when currencies differ, {@code null} otherwise
+	 * @param description  optional free-text note, {@code null} when absent
 	 */
 	public static FinancialTransaction movement(
 			TransactionType type,
@@ -110,6 +117,7 @@ public class FinancialTransaction {
 			Account target,
 			Money credit,
 			BigDecimal exchangeRate,
+			String description,
 			User initiator,
 			Instant now) {
 		if (type != TransactionType.TRANSFER && type != TransactionType.EXCHANGE) {
@@ -119,6 +127,7 @@ public class FinancialTransaction {
 		tx.setDebitSide(source, debit);
 		tx.setCreditSide(target, credit);
 		tx.exchangeRate = exchangeRate;
+		tx.description = description;
 		return tx;
 	}
 
@@ -181,6 +190,10 @@ public class FinancialTransaction {
 
 	public Optional<BigDecimal> getExchangeRate() {
 		return Optional.ofNullable(exchangeRate);
+	}
+
+	public Optional<String> getDescription() {
+		return Optional.ofNullable(description);
 	}
 
 	public Optional<FinancialTransaction> getReversalOf() {
