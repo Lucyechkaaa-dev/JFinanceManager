@@ -1,5 +1,6 @@
 package io.github.lucyechkaaa.jfinance.transaction;
 
+import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.user.User;
 import java.time.Instant;
 import java.util.List;
@@ -32,4 +33,18 @@ public interface TransactionRepository extends JpaRepository<FinancialTransactio
 			@Param("from") Instant from, @Param("to") Instant to);
 
 	boolean existsByReversalOf(FinancialTransaction original);
+
+	@Query(
+			"""
+			select coalesce(sum(t.creditAmountMinor), 0) from FinancialTransaction t
+			where t.targetAccount = :account
+			""")
+	long sumCreditsMinor(@Param("account") Account account);
+
+	@Query(
+			"""
+			select coalesce(sum(t.debitAmountMinor), 0) from FinancialTransaction t
+			where t.sourceAccount = :account
+			""")
+	long sumDebitsMinor(@Param("account") Account account);
 }
