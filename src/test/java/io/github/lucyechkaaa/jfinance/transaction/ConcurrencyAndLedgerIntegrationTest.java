@@ -2,6 +2,7 @@ package io.github.lucyechkaaa.jfinance.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.lucyechkaaa.jfinance.account.AccountRepository;
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.admin.AdminService;
 import io.github.lucyechkaaa.jfinance.common.exception.InsufficientFundsException;
@@ -14,7 +15,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -23,7 +23,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 
@@ -43,7 +42,10 @@ class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 	private TransferService transferService;
 
 	@Autowired
-	private JdbcTemplate jdbcTemplate;
+	private AccountRepository accountRepository;
+
+	@Autowired
+	private LedgerBalanceCalculator calculator;
 
 	@Test
 	void parallelTransfersNeverOverdrawOrLoseMoney() throws Exception {
@@ -90,21 +92,10 @@ class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 	 * minus the sum of its ledger debits. Checked over the whole test database.
 	 */
 	private void assertLedgerMatchesBalances() {
-		String sql =
-				"""
-				SELECT a.id, a.balance_minor,
-				       COALESCE((SELECT SUM(credit_amount_minor) FROM transactions t
-				                 WHERE t.target_account_id = a.id), 0)
-				     - COALESCE((SELECT SUM(debit_amount_minor) FROM transactions t
-				                 WHERE t.source_account_id = a.id), 0) AS ledger
-				FROM accounts a
-				""";
-		List<String> mismatches = jdbcTemplate.query(sql, (rs, row) -> {
-			long balance = rs.getLong("balance_minor");
-			long ledger = rs.getLong("ledger");
-			String mismatch = "account %d: balance %d != ledger %d";
-			return balance == ledger ? null : mismatch.formatted(rs.getLong("id"), balance, ledger);
-		}).stream().filter(Objects::nonNull).toList();
+		List<String> mismatches = accountRepository.findAll().stream()
+				.filter(account -> !account.getBalance().equals(calculator.calculate(account)))
+				.map(account -> "account " + account.getId())
+				.toList();
 		assertThat(mismatches).isEmpty();
 	}
 }
