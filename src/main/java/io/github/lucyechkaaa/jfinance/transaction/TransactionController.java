@@ -74,7 +74,8 @@ public class TransactionController {
 		StatementExporter exporter = exporters.forFormat(format);
 		DateRange range = range(from, to);
 		String body = exporter.export(queryService.historyFor(principal.getName(), range));
-		String filename = "statement_%s_%s.%s".formatted(range.from(), range.to(), exporter.format());
+		String filename = "statement_%s_%s.%s"
+				.formatted(range.from(), range.to(), exporter.format());
 		return ResponseEntity.ok()
 				.contentType(exporter.contentType())
 				.header(HttpHeaders.CONTENT_DISPOSITION,

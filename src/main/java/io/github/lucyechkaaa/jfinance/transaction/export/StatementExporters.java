@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /** Chooses the {@link StatementExporter} strategy for a requested format. */
 @Component
-public class StatementExporters {
+public final class StatementExporters {
 
 	private final Map<String, StatementExporter> byFormat = new TreeMap<>();
 
@@ -22,7 +22,8 @@ public class StatementExporters {
 		for (StatementExporter exporter : exporters) {
 			String format = normalize(exporter.format());
 			if (byFormat.putIfAbsent(format, exporter) != null) {
-				throw new IllegalStateException("Duplicate statement exporter for format " + format);
+				throw new IllegalStateException(
+						"Duplicate statement exporter for format " + format);
 			}
 		}
 	}

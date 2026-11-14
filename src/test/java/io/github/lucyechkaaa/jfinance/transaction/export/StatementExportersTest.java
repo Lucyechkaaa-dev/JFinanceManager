@@ -44,7 +44,7 @@ class StatementExportersTest {
 	}
 
 	@Test
-	void twoExportersForTheSameFormatAreAConfigurationError() {
+	void duplicateFormatIsConfigurationError() {
 		List<StatementExporter> duplicates = List.of(csv, new FakeExporter("CSV"));
 
 		assertThatThrownBy(() -> new StatementExporters(duplicates))
