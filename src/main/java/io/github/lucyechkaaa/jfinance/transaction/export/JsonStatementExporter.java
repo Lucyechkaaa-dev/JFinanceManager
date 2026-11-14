@@ -10,22 +10,26 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class JsonStatementExporter implements StatementExporter {
 
+	private static final String FORMAT = "json";
+
+	private final JsonMapper jsonMapper;
+
 	public JsonStatementExporter(JsonMapper jsonMapper) {
-		// not implemented yet
+		this.jsonMapper = jsonMapper;
 	}
 
 	@Override
 	public String format() {
-		throw new UnsupportedOperationException("not implemented yet");
+		return FORMAT;
 	}
 
 	@Override
 	public MediaType contentType() {
-		throw new UnsupportedOperationException("not implemented yet");
+		return MediaType.APPLICATION_JSON;
 	}
 
 	@Override
 	public String export(List<TransactionView> transactions) {
-		throw new UnsupportedOperationException("not implemented yet");
+		return jsonMapper.writeValueAsString(transactions);
 	}
 }

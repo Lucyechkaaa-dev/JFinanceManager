@@ -1,5 +1,6 @@
 package io.github.lucyechkaaa.jfinance.common.web;
 
+import io.github.lucyechkaaa.jfinance.common.exception.BadRequestException;
 import io.github.lucyechkaaa.jfinance.common.exception.BusinessRuleException;
 import io.github.lucyechkaaa.jfinance.common.exception.ConflictException;
 import io.github.lucyechkaaa.jfinance.common.exception.ExternalServiceException;
@@ -35,6 +36,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(NotFoundException.class)
 	ProblemDetail handleNotFound(NotFoundException ex) {
 		return problem(HttpStatus.NOT_FOUND, ex.getMessage());
+	}
+
+	@ExceptionHandler(BadRequestException.class)
+	ProblemDetail handleBadRequest(BadRequestException ex) {
+		return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}
 
 	@ExceptionHandler(ConflictException.class)

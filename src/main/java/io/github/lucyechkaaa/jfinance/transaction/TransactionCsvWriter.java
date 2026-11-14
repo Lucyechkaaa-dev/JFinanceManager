@@ -2,11 +2,14 @@ package io.github.lucyechkaaa.jfinance.transaction;
 
 import io.github.lucyechkaaa.jfinance.common.money.Money;
 import io.github.lucyechkaaa.jfinance.transaction.dto.TransactionView;
+import io.github.lucyechkaaa.jfinance.transaction.export.StatementExporter;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,14 +17,30 @@ import org.springframework.stereotype.Component;
  * with an apostrophe to prevent CSV/formula injection when opened in spreadsheet software.
  */
 @Component
-public class TransactionCsvWriter {
+public class TransactionCsvWriter implements StatementExporter {
 
 	private static final String HEADER = String.join(",",
 			"id", "created_at", "type",
 			"from_user", "from_account", "debit_amount", "debit_currency",
 			"to_user", "to_account", "credit_amount", "credit_currency",
-			"exchange_rate", "reversal_of", "initiated_by");
+			"exchange_rate", "description", "reversal_of", "initiated_by");
 	private static final String LINE_END = "\r\n";
+	private static final MediaType TEXT_CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
+
+	@Override
+	public String format() {
+		return "csv";
+	}
+
+	@Override
+	public MediaType contentType() {
+		return TEXT_CSV;
+	}
+
+	@Override
+	public String export(List<TransactionView> transactions) {
+		return write(transactions);
+	}
 
 	/** Renders a header row followed by one row per transaction, CRLF-separated. */
 	public String write(List<TransactionView> transactions) {
@@ -39,7 +58,7 @@ public class TransactionCsvWriter {
 						amount(tx.debit()), currency(tx.debit()),
 						tx.toUsername(), tx.toAccountId(),
 						amount(tx.credit()), currency(tx.credit()),
-						plain(tx.exchangeRate()), tx.reversalOfId(), tx.initiatedBy())
+						plain(tx.exchangeRate()), tx.description(), tx.reversalOfId(), tx.initiatedBy())
 				.map(value -> value == null ? "" : escape(value.toString()))
 				.collect(Collectors.joining(","));
 	}
