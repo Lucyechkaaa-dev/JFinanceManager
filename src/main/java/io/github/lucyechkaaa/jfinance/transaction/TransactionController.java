@@ -3,8 +3,9 @@ package io.github.lucyechkaaa.jfinance.transaction;
 import io.github.lucyechkaaa.jfinance.transaction.TransactionQueryService.DateRange;
 import io.github.lucyechkaaa.jfinance.transaction.dto.TransactionView;
 import io.github.lucyechkaaa.jfinance.transaction.dto.TransferRequest;
+import io.github.lucyechkaaa.jfinance.transaction.export.StatementExporter;
+import io.github.lucyechkaaa.jfinance.transaction.export.StatementExporters;
 import jakarta.validation.Valid;
-import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -14,7 +15,6 @@ import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,21 +27,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class TransactionController {
 
-	private static final MediaType TEXT_CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
+	private static final String DEFAULT_STATEMENT_FORMAT = "csv";
 
 	private final TransferService transferService;
 	private final TransactionQueryService queryService;
-	private final TransactionCsvWriter csvWriter;
+	private final StatementExporters exporters;
 	private final Clock clock;
 
 	public TransactionController(
 			TransferService transferService,
 			TransactionQueryService queryService,
-			TransactionCsvWriter csvWriter,
+			StatementExporters exporters,
 			Clock clock) {
 		this.transferService = transferService;
 		this.queryService = queryService;
-		this.csvWriter = csvWriter;
+		this.exporters = exporters;
 		this.clock = clock;
 	}
 
@@ -64,20 +64,23 @@ public class TransactionController {
 		return queryService.historyFor(principal.getName(), range(from, to));
 	}
 
-	/** Same as {@link #history} but as a downloadable CSV statement. */
-	@GetMapping("/api/transactions/export.csv")
-	public ResponseEntity<String> exportCsv(
+	/** Same as {@link #history} as a downloadable statement in the requested format. */
+	@GetMapping("/api/transactions/export")
+	public ResponseEntity<String> exportStatement(
+			@RequestParam(defaultValue = DEFAULT_STATEMENT_FORMAT) String format,
 			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
 			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
 			Principal principal) {
+		StatementExporter exporter = exporters.forFormat(format);
 		DateRange range = range(from, to);
-		String csv = csvWriter.write(queryService.historyFor(principal.getName(), range));
-		String filename = "statement_%s_%s.csv".formatted(range.from(), range.to());
+		String body = exporter.export(queryService.historyFor(principal.getName(), range));
+		String filename = "statement_%s_%s.%s"
+				.formatted(range.from(), range.to(), exporter.format());
 		return ResponseEntity.ok()
-				.contentType(TEXT_CSV)
+				.contentType(exporter.contentType())
 				.header(HttpHeaders.CONTENT_DISPOSITION,
 						ContentDisposition.attachment().filename(filename).build().toString())
-				.body(csv);
+				.body(body);
 	}
 
 	private DateRange range(LocalDate from, LocalDate to) {
