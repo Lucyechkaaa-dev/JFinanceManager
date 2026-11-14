@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 
 /** End-to-end money flows over HTTP. Fixed test rates: 1 USD = 40 UAH, 1 EUR = 50 UAH. */
@@ -216,7 +218,7 @@ class MoneyFlowIntegrationTest extends IntegrationTest {
 						.session(bobSession))
 				.andExpect(jsonPath("$.length()").value(0));
 
-		String csv = mvc.perform(get("/api/transactions/export.csv").session(aliceSession))
+		String csv = mvc.perform(export(aliceSession, "csv"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith("text/csv"))
 				.andReturn().getResponse().getContentAsString();
@@ -224,6 +226,35 @@ class MoneyFlowIntegrationTest extends IntegrationTest {
 		assertThat(lines).hasSize(3); // header + deposit + transfer
 		assertThat(lines[0]).startsWith("id,created_at,type");
 		assertThat(csv).contains(",TRANSFER,", ",DEPOSIT,", "100.00,UAH");
+	}
+
+	@Test
+	void csvStatementContainsDescription() throws Exception {
+		Map<String, String> body = new HashMap<>(uah(bob, "5"));
+		body.put("description", "Подарунок, з днем народження");
+		transfer(aliceSession, body).andExpect(status().isCreated());
+
+		String csv = mvc.perform(export(aliceSession, "csv"))
+				.andReturn().getResponse().getContentAsString();
+		assertThat(csv.split("\r\n")[0]).contains("description");
+		assertThat(csv).contains("\"Подарунок, з днем народження\"");
+	}
+
+	@Test
+	void jsonStatementIsDownloadableAsAttachment() throws Exception {
+		transfer(aliceSession, uah(bob, "100")).andExpect(status().isCreated());
+
+		mvc.perform(export(aliceSession, "json"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+				.andExpect(header().string("Content-Disposition", containsString(".json")))
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].type").value("TRANSFER"));
+	}
+
+	@Test
+	void unsupportedStatementFormatIsRejected() throws Exception {
+		mvc.perform(export(aliceSession, "xml")).andExpect(status().isBadRequest());
 	}
 
 	@Test
@@ -244,6 +275,10 @@ class MoneyFlowIntegrationTest extends IntegrationTest {
 	private ResultActions transfer(
 			MockHttpSession session, Map<String, String> body) throws Exception {
 		return mvc.perform(postJson("/api/transfers", new HashMap<>(body)).session(session));
+	}
+
+	private static MockHttpServletRequestBuilder export(MockHttpSession session, String format) {
+		return get("/api/transactions/export").param("format", format).session(session);
 	}
 
 	private void deposit(long accountId, String amount) throws Exception {
