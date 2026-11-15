@@ -51,7 +51,8 @@ public final class CachingExchangeRateProvider implements ExchangeRateProvider {
 			if (cached == null) {
 				throw ex;
 			}
-			log.warn("Rates refresh failed, using rates from {}: {}", cached.date(), ex.getMessage());
+			log.warn("Rates refresh failed, using rates from {}: {}",
+					cached.date(), ex.getMessage());
 			return cached;
 		}
 	}

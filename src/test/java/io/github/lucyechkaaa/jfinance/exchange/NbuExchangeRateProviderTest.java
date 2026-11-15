@@ -9,11 +9,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import io.github.lucyechkaaa.jfinance.common.exception.ExternalServiceException;
 import java.math.BigDecimal;
 import java.net.URI;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Currency;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +20,7 @@ import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+/** Adapter from the NBU JSON API to {@link ExchangeRates}. */
 class NbuExchangeRateProviderTest {
 
 	private static final String URL = "https://nbu.test/rates";
@@ -42,24 +40,21 @@ class NbuExchangeRateProviderTest {
 			""";
 
 	private MockRestServiceServer server;
-	private MutableClock clock;
 	private NbuExchangeRateProvider provider;
 
 	@BeforeEach
 	void setUp() {
 		RestClient.Builder builder = RestClient.builder();
 		server = MockRestServiceServer.bindTo(builder).build();
-		clock = new MutableClock(Instant.parse("2026-11-27T10:00:00Z"));
 		provider = new NbuExchangeRateProvider(
 				builder.build(),
 				new NbuProperties(URI.create(URL), Duration.ofHours(1)),
-				new CurrencyProperties(UAH, Set.of(UAH, USD, EUR)),
-				clock);
+				new CurrencyProperties(UAH, Set.of(UAH, USD, EUR)));
 	}
 
 	@Test
 	void parsesSupportedCurrenciesWithExactDecimals() {
-		server.expect(requestTo(URL)).andRespond(withSuccess(BODY, MediaType.APPLICATION_JSON));
+		respondWith(BODY);
 
 		ExchangeRates rates = provider.currentRates();
 
@@ -70,62 +65,38 @@ class NbuExchangeRateProviderTest {
 	}
 
 	@Test
-	void cachesWithinTtlAndRefreshesAfterIt() {
+	void everyCallIsOneRequestBecauseCachingIsNotTheAdaptersJob() {
 		server.expect(ExpectedCount.twice(), requestTo(URL))
 				.andRespond(withSuccess(BODY, MediaType.APPLICATION_JSON));
 
 		provider.currentRates();
-		clock.advance(Duration.ofMinutes(59));
-		provider.currentRates(); // cached, no HTTP call
-		clock.advance(Duration.ofMinutes(2));
-		provider.currentRates(); // expired, second HTTP call
+		provider.currentRates();
 
 		server.verify();
 	}
 
 	@Test
-	void fallsBackToStaleRatesWhenNbuFails() {
-		server.expect(requestTo(URL)).andRespond(withSuccess(BODY, MediaType.APPLICATION_JSON));
-		server.expect(requestTo(URL)).andRespond(withServerError());
-
-		ExchangeRates first = provider.currentRates();
-		clock.advance(Duration.ofHours(2));
-
-		assertThat(provider.currentRates()).isSameAs(first);
-	}
-
-	@Test
-	void failsWhenNbuUnavailableAndNothingCached() {
+	void serverErrorBecomesExternalServiceException() {
 		server.expect(requestTo(URL)).andRespond(withServerError());
 
 		assertThatThrownBy(provider::currentRates).isInstanceOf(ExternalServiceException.class);
 	}
 
-	private static final class MutableClock extends Clock {
+	@Test
+	void emptyResponseIsRejected() {
+		respondWith("[]");
 
-		private Instant now;
+		assertThatThrownBy(provider::currentRates).isInstanceOf(ExternalServiceException.class);
+	}
 
-		MutableClock(Instant now) {
-			this.now = now;
-		}
+	@Test
+	void malformedDateIsRejected() {
+		respondWith("[{\"rate\":45.1,\"cc\":\"USD\",\"exchangedate\":\"2026-11-27\"}]");
 
-		void advance(Duration duration) {
-			now = now.plus(duration);
-		}
+		assertThatThrownBy(provider::currentRates).isInstanceOf(ExternalServiceException.class);
+	}
 
-		@Override
-		public Instant instant() {
-			return now;
-		}
-
-		@Override
-		public ZoneOffset getZone() {
-			return ZoneOffset.UTC;
-		}
-
-		@Override
-		public Clock withZone(java.time.ZoneId zone) {
-			return this;
-		}
+	private void respondWith(String body) {
+		server.expect(requestTo(URL)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
 	}
 }
