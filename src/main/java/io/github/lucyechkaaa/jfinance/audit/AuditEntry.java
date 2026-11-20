@@ -18,6 +18,9 @@ import org.hibernate.annotations.Immutable;
 @Table(name = "audit_log")
 public class AuditEntry {
 
+	/** Maximum stored length of {@link #getDetails()}. */
+	public static final int MAX_DETAILS_LENGTH = 512;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	// SQLite AUTOINCREMENT requires the exact column type INTEGER.
@@ -62,6 +65,11 @@ public class AuditEntry {
 		this.createdAt = Objects.requireNonNull(createdAt);
 	}
 
+	/** Starts building an audit record. */
+	public static Builder builder() {
+		return new Builder();
+	}
+
 	public Long getId() {
 		return id;
 	}
@@ -88,5 +96,52 @@ public class AuditEntry {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	/** Builds {@link AuditEntry} with named steps instead of positional arguments. */
+	public static final class Builder {
+
+		private Builder() {
+		}
+
+		/** Who performed the action. */
+		public Builder actor(String actor) {
+			return this;
+		}
+
+		/** What was done. */
+		public Builder action(AuditAction action) {
+			return this;
+		}
+
+		/** Object of the action, e.g. {@code "tx:12"}; optional. */
+		public Builder target(String target) {
+			return this;
+		}
+
+		/** Free-text details; optional, truncated to {@link #MAX_DETAILS_LENGTH}. */
+		public Builder details(String details) {
+			return this;
+		}
+
+		/** Marks the action as successful. */
+		public Builder succeeded() {
+			return this;
+		}
+
+		/** Marks the action as refused or failed. */
+		public Builder failed() {
+			return this;
+		}
+
+		/** When it happened. */
+		public Builder at(Instant createdAt) {
+			return this;
+		}
+
+		/** Creates the record; actor, action, outcome and time are required. */
+		public AuditEntry build() {
+			throw new UnsupportedOperationException("not implemented yet");
+		}
 	}
 }
