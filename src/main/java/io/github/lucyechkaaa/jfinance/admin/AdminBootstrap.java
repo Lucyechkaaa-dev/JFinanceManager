@@ -25,6 +25,8 @@ public class AdminBootstrap implements ApplicationRunner {
 	private static final Logger log = LoggerFactory.getLogger(AdminBootstrap.class);
 	private static final int GENERATED_PASSWORD_BYTES = 12;
 	private static final SecureRandom RANDOM = new SecureRandom();
+	/** Guarantees the generated password satisfies the letter-and-digit policy. */
+	private static final String POLICY_SUFFIX = "9a";
 
 	private final UserRepository userRepository;
 	private final UserService userService;
@@ -72,7 +74,6 @@ public class AdminBootstrap implements ApplicationRunner {
 	private static String generatePassword() {
 		byte[] bytes = new byte[GENERATED_PASSWORD_BYTES];
 		RANDOM.nextBytes(bytes);
-		// URL-safe Base64 of 12 bytes = 16 chars; append a digit+letter to satisfy password policy.
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes) + "9a";
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes) + POLICY_SUFFIX;
 	}
 }

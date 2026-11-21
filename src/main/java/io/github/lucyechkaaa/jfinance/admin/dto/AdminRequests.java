@@ -1,5 +1,6 @@
 package io.github.lucyechkaaa.jfinance.admin.dto;
 
+import io.github.lucyechkaaa.jfinance.common.money.Money;
 import io.github.lucyechkaaa.jfinance.user.Role;
 import io.github.lucyechkaaa.jfinance.user.UserStatus;
 import jakarta.validation.constraints.Digits;
@@ -23,6 +24,8 @@ public final class AdminRequests {
 
 	/** Amount in the account's own currency. */
 	public record DepositRequest(
-			@NotNull @Positive @Digits(integer = 15, fraction = 2) BigDecimal amount) {
+			@NotNull @Positive
+			@Digits(integer = Money.MAX_INTEGER_DIGITS, fraction = Money.MAX_FRACTION_DIGITS)
+			BigDecimal amount) {
 	}
 }

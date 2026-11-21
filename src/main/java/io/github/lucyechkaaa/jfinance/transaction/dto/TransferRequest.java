@@ -1,5 +1,6 @@
 package io.github.lucyechkaaa.jfinance.transaction.dto;
 
+import io.github.lucyechkaaa.jfinance.common.money.Money;
 import io.github.lucyechkaaa.jfinance.transaction.FinancialTransaction;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -22,7 +23,9 @@ public record TransferRequest(
 		@NotNull Currency fromCurrency,
 		@NotBlank String toUsername,
 		Currency toCurrency,
-		@NotNull @Positive @Digits(integer = 15, fraction = 2) BigDecimal amount,
+		@NotNull @Positive
+		@Digits(integer = Money.MAX_INTEGER_DIGITS, fraction = Money.MAX_FRACTION_DIGITS)
+		BigDecimal amount,
 		@Size(max = FinancialTransaction.MAX_DESCRIPTION_LENGTH) String description) {
 
 	/** Target currency, defaulting to the source currency. */
