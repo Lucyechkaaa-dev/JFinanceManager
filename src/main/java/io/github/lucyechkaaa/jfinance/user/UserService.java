@@ -2,6 +2,7 @@ package io.github.lucyechkaaa.jfinance.user;
 
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
 import io.github.lucyechkaaa.jfinance.common.exception.ConflictException;
 import io.github.lucyechkaaa.jfinance.common.exception.ForbiddenOperationException;
@@ -51,7 +52,12 @@ public class UserService {
 				passwordEncoder.encode(rawPassword), "password encoder returned null");
 		User user = userRepository.save(new User(username, passwordHash, role, clock.instant()));
 		accountService.openBaseAccount(user);
-		auditService.success(username, AuditAction.REGISTER, username, "role=" + role);
+		auditService.record(AuditEntry.builder()
+				.actor(username)
+				.action(AuditAction.REGISTER)
+				.target(username)
+				.details("role=" + role)
+				.succeeded());
 		return user;
 	}
 

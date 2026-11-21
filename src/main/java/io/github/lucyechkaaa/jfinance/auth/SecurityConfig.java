@@ -1,6 +1,7 @@
 package io.github.lucyechkaaa.jfinance.auth;
 
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
 import io.github.lucyechkaaa.jfinance.common.web.JsonErrorWriter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -67,8 +68,11 @@ public class SecurityConfig {
 						.logoutUrl("/api/auth/logout")
 						.addLogoutHandler((request, response, authentication) -> {
 							if (authentication != null) {
-								auditService.success(authentication.getName(), AuditAction.LOGOUT,
-										authentication.getName(), null);
+								auditService.record(AuditEntry.builder()
+										.actor(authentication.getName())
+										.action(AuditAction.LOGOUT)
+										.target(authentication.getName())
+										.succeeded());
 							}
 						})
 						.logoutSuccessHandler((request, response, authentication) ->

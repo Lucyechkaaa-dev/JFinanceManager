@@ -1,7 +1,9 @@
 package io.github.lucyechkaaa.jfinance.account;
 
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
+import io.github.lucyechkaaa.jfinance.audit.AuditTarget;
 import io.github.lucyechkaaa.jfinance.common.exception.BusinessRuleException;
 import io.github.lucyechkaaa.jfinance.common.exception.ConflictException;
 import io.github.lucyechkaaa.jfinance.common.exception.NotFoundException;
@@ -54,8 +56,12 @@ public class AccountService {
 			throw new ConflictException("Account in %s already exists".formatted(currency));
 		}
 		Account account = accountRepository.save(new Account(owner, currency, clock.instant()));
-		auditService.success(owner.getUsername(), AuditAction.ACCOUNT_OPENED,
-				"account:" + account.getId(), currency.getCurrencyCode());
+		auditService.record(AuditEntry.builder()
+				.actor(owner.getUsername())
+				.action(AuditAction.ACCOUNT_OPENED)
+				.target(AuditTarget.account(account.getId()))
+				.details(currency.getCurrencyCode())
+				.succeeded());
 		return account;
 	}
 
