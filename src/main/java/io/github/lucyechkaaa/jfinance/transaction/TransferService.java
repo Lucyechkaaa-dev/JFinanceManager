@@ -3,7 +3,9 @@ package io.github.lucyechkaaa.jfinance.transaction;
 import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
+import io.github.lucyechkaaa.jfinance.audit.AuditTarget;
 import io.github.lucyechkaaa.jfinance.common.exception.BusinessRuleException;
 import io.github.lucyechkaaa.jfinance.common.money.Money;
 import io.github.lucyechkaaa.jfinance.exchange.Conversion;
@@ -98,8 +100,12 @@ public class TransferService {
 				? AuditAction.EXCHANGE
 				: AuditAction.TRANSFER;
 		String rate = conversion.isCrossCurrency() ? " @ " + conversion.rate() : "";
-		auditService.success(tx.getInitiatedBy().getUsername(), action, "tx:" + tx.getId(),
-				"%s -> %s %s%s".formatted(conversion.source(), recipient.getUsername(),
-						conversion.result(), rate));
+		auditService.record(AuditEntry.builder()
+				.actor(tx.getInitiatedBy().getUsername())
+				.action(action)
+				.target(AuditTarget.transaction(tx.getId()))
+				.details("%s -> %s %s%s".formatted(conversion.source(), recipient.getUsername(),
+						conversion.result(), rate))
+				.succeeded());
 	}
 }

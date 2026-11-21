@@ -50,7 +50,7 @@ public class AuditEntry {
 		// for JPA
 	}
 
-	public AuditEntry(
+	private AuditEntry(
 			String actor,
 			AuditAction action,
 			String target,

@@ -4,7 +4,9 @@ import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.account.dto.AccountResponse;
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
+import io.github.lucyechkaaa.jfinance.audit.AuditTarget;
 import io.github.lucyechkaaa.jfinance.common.exception.BusinessRuleException;
 import io.github.lucyechkaaa.jfinance.common.exception.ConflictException;
 import io.github.lucyechkaaa.jfinance.common.exception.NotFoundException;
@@ -69,8 +71,12 @@ public class AdminService {
 		User user = getUser(userId);
 		requireNotSelf(adminUsername, user);
 		user.changeStatus(status);
-		auditService.success(adminUsername, AuditAction.USER_STATUS_CHANGED, user.getUsername(),
-				"status=" + status);
+		auditService.record(AuditEntry.builder()
+				.actor(adminUsername)
+				.action(AuditAction.USER_STATUS_CHANGED)
+				.target(user.getUsername())
+				.details("status=" + status)
+				.succeeded());
 		return UserResponse.from(user);
 	}
 
@@ -80,8 +86,12 @@ public class AdminService {
 		User user = getUser(userId);
 		requireNotSelf(adminUsername, user);
 		user.changeRole(role);
-		auditService.success(adminUsername, AuditAction.USER_ROLE_CHANGED, user.getUsername(),
-				"role=" + role);
+		auditService.record(AuditEntry.builder()
+				.actor(adminUsername)
+				.action(AuditAction.USER_ROLE_CHANGED)
+				.target(user.getUsername())
+				.details("role=" + role)
+				.succeeded());
 		return UserResponse.from(user);
 	}
 
@@ -100,8 +110,12 @@ public class AdminService {
 		account.credit(money);
 		FinancialTransaction tx = transactionRepository.save(
 				FinancialTransaction.deposit(account, money, admin, clock.instant()));
-		auditService.success(adminUsername, AuditAction.DEPOSIT, "account:" + accountId,
-				money + " tx:" + tx.getId());
+		auditService.record(AuditEntry.builder()
+				.actor(adminUsername)
+				.action(AuditAction.DEPOSIT)
+				.target(AuditTarget.account(accountId))
+				.details(money + " " + AuditTarget.transaction(tx.getId()))
+				.succeeded());
 		return TransactionView.from(tx);
 	}
 
@@ -131,8 +145,12 @@ public class AdminService {
 				.ifPresent(account -> account.credit(reversal.getCredit().orElseThrow()));
 		FinancialTransaction saved = transactionRepository.save(reversal);
 
-		auditService.success(adminUsername, AuditAction.REVERSAL, "tx:" + transactionId,
-				"reversal tx:" + saved.getId());
+		auditService.record(AuditEntry.builder()
+				.actor(adminUsername)
+				.action(AuditAction.REVERSAL)
+				.target(AuditTarget.transaction(transactionId))
+				.details("reversal " + AuditTarget.transaction(saved.getId()))
+				.succeeded());
 		return TransactionView.from(saved);
 	}
 

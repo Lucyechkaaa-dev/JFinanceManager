@@ -16,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuditService {
 
+	/** Actor name for actions performed by the system itself (bootstrap, automatic locks). */
+	public static final String SYSTEM_ACTOR = "system";
+
 	private static final Logger log = LoggerFactory.getLogger(AuditService.class);
-	private static final int MAX_DETAILS_LENGTH = 512;
 
 	private final AuditRepository auditRepository;
 	private final Clock clock;
@@ -27,32 +29,21 @@ public class AuditService {
 		this.clock = clock;
 	}
 
-	/** Records a successful action. */
+	/**
+	 * Stamps the entry with the current time and stores it.
+	 *
+	 * @param entry builder with actor, action and outcome set
+	 */
 	@Transactional
-	public void success(String actor, AuditAction action, String target, String details) {
-		record(actor, action, target, details, true);
-	}
-
-	/** Records a refused or failed action. */
-	@Transactional
-	public void failure(String actor, AuditAction action, String target, String details) {
-		record(actor, action, target, details, false);
+	public void record(AuditEntry.Builder entry) {
+		AuditEntry saved = auditRepository.save(entry.at(clock.instant()).build());
+		log.info("AUDIT action={} actor={} target={} success={} details={}", saved.getAction(),
+				saved.getActor(), saved.getTarget(), saved.isSuccess(), saved.getDetails());
 	}
 
 	/** The {@code limit} most recent audit records, newest first. */
 	@Transactional(readOnly = true)
 	public List<AuditEntry> latest(int limit) {
 		return auditRepository.findAllByOrderByIdDesc(PageRequest.ofSize(limit));
-	}
-
-	private void record(
-			String actor, AuditAction action, String target, String details, boolean success) {
-		String trimmed = details != null && details.length() > MAX_DETAILS_LENGTH
-				? details.substring(0, MAX_DETAILS_LENGTH)
-				: details;
-		auditRepository.save(
-				new AuditEntry(actor, action, target, trimmed, success, clock.instant()));
-		log.info("AUDIT action={} actor={} target={} success={} details={}",
-				action, actor, target, success, trimmed);
 	}
 }

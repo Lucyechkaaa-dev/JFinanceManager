@@ -1,6 +1,7 @@
 package io.github.lucyechkaaa.jfinance.admin;
 
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
 import io.github.lucyechkaaa.jfinance.user.Role;
 import io.github.lucyechkaaa.jfinance.user.User;
@@ -53,7 +54,11 @@ public class AdminBootstrap implements ApplicationRunner {
 		String password = generated ? generatePassword() : adminProperties.password();
 
 		User admin = userService.register(adminProperties.username(), password, Role.ADMIN);
-		auditService.success("system", AuditAction.ADMIN_BOOTSTRAPPED, admin.getUsername(), null);
+		auditService.record(AuditEntry.builder()
+				.actor(AuditService.SYSTEM_ACTOR)
+				.action(AuditAction.ADMIN_BOOTSTRAPPED)
+				.target(admin.getUsername())
+				.succeeded());
 
 		if (generated) {
 			log.warn("No users found. Created admin '{}' with generated password: {} "

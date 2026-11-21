@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.audit.AuditAction;
+import io.github.lucyechkaaa.jfinance.audit.AuditEntry;
 import io.github.lucyechkaaa.jfinance.audit.AuditService;
 import io.github.lucyechkaaa.jfinance.common.exception.BusinessRuleException;
 import io.github.lucyechkaaa.jfinance.common.exception.ForbiddenOperationException;
@@ -31,6 +32,7 @@ import java.util.Currency;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -41,6 +43,7 @@ class TransferServiceTest {
 
 	private static final Currency UAH = Currency.getInstance("UAH");
 	private static final Currency USD = Currency.getInstance("USD");
+	private static final long SAVED_TX_ID = 99L;
 	private static final Instant NOW = Instant.parse("2026-11-26T12:00:00Z");
 
 	@Mock
@@ -75,14 +78,20 @@ class TransferServiceTest {
 		givenUsersAndAccounts(bobUah);
 		when(currencyConverter.convert(Money.of("40", "UAH"), UAH))
 				.thenReturn(new Conversion(Money.of("40", "UAH"), Money.of("40", "UAH"), null));
-		when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+		when(transactionRepository.save(any())).thenAnswer(inv -> withId(inv.getArgument(0)));
 
 		TransactionView view = service.transfer(command(UAH, new BigDecimal("40")));
 
 		assertThat(view.type()).isEqualTo(TransactionType.TRANSFER);
 		assertThat(aliceUah.getBalance()).isEqualTo(Money.of("60", "UAH"));
 		assertThat(bobUah.getBalance()).isEqualTo(Money.of("40", "UAH"));
-		verify(auditService).success(eq("alice"), eq(AuditAction.TRANSFER), any(), any());
+		ArgumentCaptor<AuditEntry.Builder> audit =
+				ArgumentCaptor.forClass(AuditEntry.Builder.class);
+		verify(auditService).record(audit.capture());
+		AuditEntry entry = audit.getValue().at(NOW).build();
+		assertThat(entry.getActor()).isEqualTo("alice");
+		assertThat(entry.getAction()).isEqualTo(AuditAction.TRANSFER);
+		assertThat(entry.isSuccess()).isTrue();
 	}
 
 	@Test
@@ -91,7 +100,7 @@ class TransferServiceTest {
 		givenUsersAndAccounts(bobUsd);
 		when(currencyConverter.convert(Money.of("80", "UAH"), USD)).thenReturn(new Conversion(
 				Money.of("80", "UAH"), Money.of("2", "USD"), new BigDecimal("0.025")));
-		when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+		when(transactionRepository.save(any())).thenAnswer(inv -> withId(inv.getArgument(0)));
 
 		TransactionView view = service.transfer(command(USD, new BigDecimal("80")));
 
@@ -144,6 +153,12 @@ class TransferServiceTest {
 		when(accountService.getFor(alice, UAH)).thenReturn(aliceUah);
 		when(accountService.getFor(bob, recipientAccount.getCurrency()))
 				.thenReturn(recipientAccount);
+	}
+
+	/** Mimics the repository, which assigns an id on save. */
+	private static FinancialTransaction withId(FinancialTransaction tx) {
+		ReflectionTestUtils.setField(tx, "id", SAVED_TX_ID);
+		return tx;
 	}
 
 	private static User user(long id, String name) {
