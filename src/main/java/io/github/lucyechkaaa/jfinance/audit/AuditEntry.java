@@ -101,47 +101,80 @@ public class AuditEntry {
 	/** Builds {@link AuditEntry} with named steps instead of positional arguments. */
 	public static final class Builder {
 
+		private String actor;
+		private AuditAction action;
+		private String target;
+		private String details;
+		private Boolean success;
+		private Instant createdAt;
+
 		private Builder() {
 		}
 
 		/** Who performed the action. */
 		public Builder actor(String actor) {
+			this.actor = actor;
 			return this;
 		}
 
 		/** What was done. */
 		public Builder action(AuditAction action) {
+			this.action = action;
 			return this;
 		}
 
 		/** Object of the action, e.g. {@code "tx:12"}; optional. */
 		public Builder target(String target) {
+			this.target = target;
 			return this;
 		}
 
 		/** Free-text details; optional, truncated to {@link #MAX_DETAILS_LENGTH}. */
 		public Builder details(String details) {
+			this.details = details;
 			return this;
 		}
 
 		/** Marks the action as successful. */
 		public Builder succeeded() {
+			this.success = Boolean.TRUE;
 			return this;
 		}
 
 		/** Marks the action as refused or failed. */
 		public Builder failed() {
+			this.success = Boolean.FALSE;
 			return this;
 		}
 
 		/** When it happened. */
 		public Builder at(Instant createdAt) {
+			this.createdAt = createdAt;
 			return this;
 		}
 
-		/** Creates the record; actor, action, outcome and time are required. */
+		/**
+		 * Creates the record.
+		 *
+		 * @throws IllegalStateException if actor, action, outcome or time is missing
+		 */
 		public AuditEntry build() {
-			throw new UnsupportedOperationException("not implemented yet");
+			if (actor == null || actor.isBlank()) {
+				throw new IllegalStateException("Audit actor is required");
+			}
+			require(action, "action");
+			require(success, "outcome");
+			require(createdAt, "time");
+			String trimmed = details != null && details.length() > MAX_DETAILS_LENGTH
+					? details.substring(0, MAX_DETAILS_LENGTH)
+					: details;
+			return new AuditEntry(actor, action, target, trimmed, success, createdAt);
+		}
+
+		private static void require(Object value, String name) {
+			if (value == null) {
+				throw new IllegalStateException("Audit " + name + " is required");
+			}
 		}
 	}
 }
