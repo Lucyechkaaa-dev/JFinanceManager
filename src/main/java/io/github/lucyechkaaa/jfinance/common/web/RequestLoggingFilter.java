@@ -25,12 +25,14 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
 	private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
 	private static final String REQUEST_ID_HEADER = "X-Request-Id";
+	private static final int REQUEST_ID_LENGTH = 8;
+	private static final long NANOS_PER_MILLI = 1_000_000;
 
 	@Override
 	protected void doFilterInternal(
 			HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
-		String requestId = UUID.randomUUID().toString().substring(0, 8);
+		String requestId = UUID.randomUUID().toString().substring(0, REQUEST_ID_LENGTH);
 		MDC.put("requestId", requestId);
 		response.setHeader(REQUEST_ID_HEADER, requestId);
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -43,7 +45,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 			chain.doFilter(request, response);
 		} finally {
 			log.info("{} {} -> {} ({} ms)", request.getMethod(), request.getRequestURI(),
-					response.getStatus(), (System.nanoTime() - start) / 1_000_000);
+					response.getStatus(), (System.nanoTime() - start) / NANOS_PER_MILLI);
 			MDC.clear();
 		}
 	}

@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
@@ -28,7 +31,8 @@ public abstract class IntegrationTest {
 
 	protected static final String PASSWORD = "Secret123";
 	protected static final String ADMIN = "admin";
-	protected static final String ADMIN_PASSWORD = "Admin12345";
+	/** Random per run, so no credential is stored in the repository. */
+	protected static final String ADMIN_PASSWORD = "Adm1n-" + UUID.randomUUID();
 
 	private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
@@ -37,6 +41,11 @@ public abstract class IntegrationTest {
 
 	@Autowired
 	protected JsonMapper jsonMapper;
+
+	@DynamicPropertySource
+	static void bootstrapAdminPassword(DynamicPropertyRegistry registry) {
+		registry.add("jfinance.admin.password", () -> ADMIN_PASSWORD);
+	}
 
 	/** Username that is unique within the shared test database. */
 	protected static String uniqueUsername(String prefix) {

@@ -35,6 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin")
 public class AdminController {
 
+	private static final String DEFAULT_AUDIT_LIMIT = "100";
+	private static final int MAX_AUDIT_LIMIT = 1000;
+
 	private final AdminService adminService;
 	private final TransactionQueryService queryService;
 	private final AuditService auditService;
@@ -109,7 +112,8 @@ public class AdminController {
 	/** Most recent audit records. */
 	@GetMapping("/audit")
 	public List<AuditEntryResponse> audit(
-			@RequestParam(defaultValue = "100") @Min(1) @Max(1000) int limit) {
+			@RequestParam(defaultValue = DEFAULT_AUDIT_LIMIT) @Min(1) @Max(MAX_AUDIT_LIMIT)
+			int limit) {
 		return auditService.latest(limit).stream().map(AuditEntryResponse::from).toList();
 	}
 }

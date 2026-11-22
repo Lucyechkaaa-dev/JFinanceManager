@@ -6,7 +6,7 @@ spring:
 jfinance:
   admin:
     username: admin
-    password: Admin12345
+    # password is generated per test run (IntegrationTest) - no secrets in the repository
 
 logging:
   file:

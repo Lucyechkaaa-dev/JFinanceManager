@@ -18,6 +18,8 @@ public final class SecurityUser implements UserDetails {
 	@Serial
 	private static final long serialVersionUID = 1L;
 
+	private static final String ROLE_PREFIX = "ROLE_";
+
 	private final String username;
 	private final String passwordHash;
 	private final List<GrantedAuthority> authorities;
@@ -42,7 +44,7 @@ public final class SecurityUser implements UserDetails {
 		return new SecurityUser(
 				user.getUsername(),
 				user.getPasswordHash(),
-				List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
+				List.of(new SimpleGrantedAuthority(ROLE_PREFIX + user.getRole().name())),
 				user.isActive(),
 				!user.isLockedAt(now));
 	}
