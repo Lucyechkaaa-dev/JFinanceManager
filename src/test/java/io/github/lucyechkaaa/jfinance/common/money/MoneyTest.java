@@ -56,4 +56,40 @@ class MoneyTest {
 		assertThat(Money.of("-1", "UAH").isNegative()).isTrue();
 		assertThat(Money.zero(UAH).isPositive()).isFalse();
 	}
+
+	@Test
+	void nullAmountOrCurrencyIsRejected() {
+		assertThatThrownBy(() -> Money.of((BigDecimal) null, UAH))
+				.isInstanceOf(NullPointerException.class);
+		assertThatThrownBy(() -> Money.of(BigDecimal.ONE, null))
+				.isInstanceOf(NullPointerException.class);
+	}
+
+	@Test
+	void malformedAmountTextIsRejected() {
+		assertThatThrownBy(() -> Money.of("", "UAH")).isInstanceOf(NumberFormatException.class);
+		assertThatThrownBy(() -> Money.of("1,50", "UAH")).isInstanceOf(NumberFormatException.class);
+	}
+
+	@Test
+	void unknownCurrencyCodeIsRejected() {
+		assertThatThrownBy(() -> Money.of("1", "XYZW"))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void minorUnitsRoundTripAtTheEdgesOfTheScale() {
+		assertThat(Money.of("0.01", "UAH").toMinorUnits()).isEqualTo(1);
+		assertThat(Money.ofMinor(1, UAH)).isEqualTo(Money.of("0.01", "UAH"));
+		assertThat(Money.of("999999999999999.99", "UAH").toMinorUnits())
+				.isEqualTo(99_999_999_999_999_999L);
+	}
+
+	@Test
+	void subtractionResultMayBeNegative() {
+		Money result = Money.of("1", "UAH").minus(Money.of("1.01", "UAH"));
+
+		assertThat(result.isNegative()).isTrue();
+		assertThat(result).isEqualTo(Money.of("-0.01", "UAH"));
+	}
 }

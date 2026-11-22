@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.common.exception.InsufficientFundsException;
 import io.github.lucyechkaaa.jfinance.common.money.Money;
+import io.github.lucyechkaaa.jfinance.transaction.FinancialTransaction;
+import io.github.lucyechkaaa.jfinance.transaction.TransactionType;
 import io.github.lucyechkaaa.jfinance.user.Role;
 import io.github.lucyechkaaa.jfinance.user.User;
 import java.time.Duration;
@@ -33,6 +35,74 @@ class DomainModelTest {
 		assertThatThrownBy(() -> account.credit(Money.zero(UAH)))
 				.isInstanceOf(IllegalArgumentException.class);
 		assertThat(account.getBalance()).isEqualTo(Money.of("10", "UAH"));
+	}
+
+	@Test
+	void debitOfTheWholeBalanceLeavesExactlyZero() {
+		Account account = new Account(user, UAH, NOW);
+		account.credit(Money.of("10", "UAH"));
+
+		account.debit(Money.of("10", "UAH"));
+
+		assertThat(account.getBalance()).isEqualTo(Money.zero(UAH));
+	}
+
+	@Test
+	void smallestAmountsAreAccepted() {
+		Account account = new Account(user, UAH, NOW);
+
+		account.credit(Money.of("0.01", "UAH"));
+		account.debit(Money.of("0.01", "UAH"));
+
+		assertThat(account.getBalance()).isEqualTo(Money.zero(UAH));
+	}
+
+	@Test
+	void negativeAmountsAreRejected() {
+		Account account = new Account(user, UAH, NOW);
+		account.credit(Money.of("5", "UAH"));
+
+		assertThatThrownBy(() -> account.credit(Money.of("-1", "UAH")))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> account.debit(Money.of("-1", "UAH")))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThat(account.getBalance()).isEqualTo(Money.of("5", "UAH"));
+	}
+
+	@Test
+	void nullArgumentsAreRejected() {
+		Account account = new Account(user, UAH, NOW);
+
+		assertThatThrownBy(() -> account.credit(null)).isInstanceOf(NullPointerException.class);
+		assertThatThrownBy(() -> account.debit(null)).isInstanceOf(NullPointerException.class);
+		assertThatThrownBy(() -> new Account(null, UAH, NOW))
+				.isInstanceOf(NullPointerException.class);
+		assertThatThrownBy(() -> new User(null, "hash", Role.USER, NOW))
+				.isInstanceOf(NullPointerException.class);
+	}
+
+	@Test
+	void reversalOfReversalIsImpossible() {
+		Account source = new Account(user, UAH, NOW);
+		Account target = new Account(user, Currency.getInstance("USD"), NOW);
+		FinancialTransaction transfer = FinancialTransaction.movement(TransactionType.EXCHANGE,
+				source, Money.of("40", "UAH"), target, Money.of("1", "USD"), null, null, user, NOW);
+		FinancialTransaction reversal = FinancialTransaction.reversalOf(transfer, user, NOW);
+
+		assertThat(reversal.getDebit()).contains(Money.of("1", "USD"));
+		assertThat(reversal.getCredit()).contains(Money.of("40", "UAH"));
+		assertThatThrownBy(() -> FinancialTransaction.reversalOf(reversal, user, NOW))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void depositCannotBeCreatedAsMovement() {
+		Account account = new Account(user, UAH, NOW);
+		Money amount = Money.of("1", "UAH");
+
+		assertThatThrownBy(() -> FinancialTransaction.movement(TransactionType.DEPOSIT,
+				account, amount, account, amount, null, null, user, NOW))
+				.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	@Test
