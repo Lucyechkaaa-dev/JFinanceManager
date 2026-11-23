@@ -91,6 +91,7 @@ class TransferServiceTest {
 		AuditEntry entry = audit.getValue().at(NOW).build();
 		assertThat(entry.getActor()).isEqualTo("alice");
 		assertThat(entry.getAction()).isEqualTo(AuditAction.TRANSFER);
+		assertThat(entry.getDetails()).isEqualTo("40.00 UAH -> bob 40.00 UAH");
 		assertThat(entry.isSuccess()).isTrue();
 	}
 
@@ -175,5 +176,40 @@ class TransferServiceTest {
 			account.credit(initial);
 		}
 		return account;
+	}
+
+	@Test
+	void transferToOwnAccountInAnotherCurrencyIsAuditedAsExchange() {
+		Account aliceUsd = account(11L, alice, USD, "0");
+		when(userService.getActiveUser("alice")).thenReturn(alice);
+		when(userService.getByUsername("alice")).thenReturn(alice);
+		when(accountService.getFor(alice, UAH)).thenReturn(aliceUah);
+		when(accountService.getFor(alice, USD)).thenReturn(aliceUsd);
+		when(currencyConverter.convert(Money.of("40", "UAH"), USD)).thenReturn(new Conversion(
+				Money.of("40", "UAH"), Money.of("1", "USD"), new BigDecimal("0.025")));
+		when(transactionRepository.save(any())).thenAnswer(inv -> withId(inv.getArgument(0)));
+
+		TransactionView view = service.transfer(
+				new TransferCommand("alice", UAH, "alice", USD, new BigDecimal("40"), null));
+
+		assertThat(view.type()).isEqualTo(TransactionType.EXCHANGE);
+		ArgumentCaptor<AuditEntry.Builder> audit =
+				ArgumentCaptor.forClass(AuditEntry.Builder.class);
+		verify(auditService).record(audit.capture());
+		AuditEntry entry = audit.getValue().at(NOW).build();
+		assertThat(entry.getAction()).isEqualTo(AuditAction.EXCHANGE);
+		assertThat(entry.getDetails()).isEqualTo("40.00 UAH -> alice 1.00 USD @ 0.025");
+	}
+
+	@Test
+	void transferToTheSameAccountIsRejected() {
+		when(userService.getActiveUser("alice")).thenReturn(alice);
+		when(userService.getByUsername("alice")).thenReturn(alice);
+		when(accountService.getFor(alice, UAH)).thenReturn(aliceUah);
+
+		assertThatThrownBy(() -> service.transfer(
+				new TransferCommand("alice", UAH, "alice", UAH, BigDecimal.ONE, null)))
+				.isInstanceOf(BusinessRuleException.class);
+		assertThat(aliceUah.getBalance()).isEqualTo(Money.of("100", "UAH"));
 	}
 }

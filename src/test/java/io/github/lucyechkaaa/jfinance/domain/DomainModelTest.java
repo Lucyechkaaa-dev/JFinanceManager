@@ -125,4 +125,18 @@ class DomainModelTest {
 		assertThat(user.getFailedLoginAttempts()).isZero();
 		assertThat(user.getLockedUntil()).isNull();
 	}
+
+	@Test
+	void depositHasOnlyCreditSide() {
+		Account account = new Account(user, UAH, NOW);
+
+		FinancialTransaction deposit =
+				FinancialTransaction.deposit(account, Money.of("5", "UAH"), user, NOW);
+
+		assertThat(deposit.getType()).isEqualTo(TransactionType.DEPOSIT);
+		assertThat(deposit.getCredit()).contains(Money.of("5", "UAH"));
+		assertThat(deposit.getDebit()).isEmpty();
+		assertThat(deposit.getSourceAccount()).isEmpty();
+		assertThat(deposit.getTargetAccount()).contains(account);
+	}
 }

@@ -92,4 +92,25 @@ class MoneyTest {
 		assertThat(result.isNegative()).isTrue();
 		assertThat(result).isEqualTo(Money.of("-0.01", "UAH"));
 	}
+
+	@Test
+	void zeroIsNeitherPositiveNorNegative() {
+		assertThat(Money.zero(UAH).isNegative()).isFalse();
+		assertThat(Money.zero(UAH).isPositive()).isFalse();
+		assertThat(Money.of("0.01", "UAH").isNegative()).isFalse();
+	}
+
+	@Test
+	void subtractionAndComparisonRefuseOtherCurrencies() {
+		Money uah = Money.of("1", "UAH");
+		Money usd = Money.of("1", "USD");
+
+		assertThatThrownBy(() -> uah.minus(usd)).hasMessageContaining("Currency mismatch");
+		assertThatThrownBy(() -> uah.compareTo(usd)).hasMessageContaining("Currency mismatch");
+	}
+
+	@Test
+	void textFormIsAmountAndCode() {
+		assertThat(Money.of("1234.5", "UAH")).hasToString("1234.50 UAH");
+	}
 }
