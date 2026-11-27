@@ -1,6 +1,7 @@
 package io.github.lucyechkaaa.jfinance.common.config;
 
 import java.time.Clock;
+import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -8,9 +9,15 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ClockConfig {
 
-	/** UTC system clock. */
+	/** SQLite stores timestamps with millisecond precision. */
+	private static final Duration STORAGE_PRECISION = Duration.ofMillis(1);
+
+	/**
+	 * UTC clock that ticks in whole milliseconds, so every timestamp the application creates is
+	 * read back from the database unchanged.
+	 */
 	@Bean
 	public Clock clock() {
-		return Clock.systemUTC();
+		return Clock.tick(Clock.systemUTC(), STORAGE_PRECISION);
 	}
 }

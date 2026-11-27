@@ -48,11 +48,11 @@ class CachingExchangeRateProviderTest {
 	@Test
 	void ratesAreReusedUntilTtlExpires() {
 		delegate.willReturn(rates("41.50"));
-		provider.currentRates();
+		ExchangeRates first = provider.currentRates();
 
 		clock.advance(TTL.minusNanos(1));
-		provider.currentRates();
 
+		assertThat(provider.currentRates()).isSameAs(first);
 		assertThat(delegate.calls).isEqualTo(1);
 	}
 

@@ -59,4 +59,20 @@ class CurrencyConverterTest {
 		assertThatThrownBy(() -> converter.convert(Money.of("0.01", "UAH"), USD))
 				.isInstanceOf(BusinessRuleException.class);
 	}
+
+	@Test
+	void currencyWithoutOfficialRateIsRejected() {
+		Currency withoutRate = Currency.getInstance("PLN");
+
+		assertThatThrownBy(() -> converter.convert(Money.of("1", "UAH"), withoutRate))
+				.isInstanceOf(BusinessRuleException.class)
+				.hasMessageContaining("PLN");
+	}
+
+	@Test
+	void smallestConvertibleAmountGivesOneMinorUnit() {
+		// 0.42 UAH / 41.5 = 0.0101.. USD -> 0.01
+		assertThat(converter.convert(Money.of("0.42", "UAH"), USD).result())
+				.isEqualTo(Money.of("0.01", "USD"));
+	}
 }

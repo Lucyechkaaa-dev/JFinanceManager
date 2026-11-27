@@ -56,4 +56,61 @@ class MoneyTest {
 		assertThat(Money.of("-1", "UAH").isNegative()).isTrue();
 		assertThat(Money.zero(UAH).isPositive()).isFalse();
 	}
+
+	@Test
+	void nullAmountOrCurrencyIsRejected() {
+		assertThatThrownBy(() -> Money.of((BigDecimal) null, UAH))
+				.isInstanceOf(NullPointerException.class);
+		assertThatThrownBy(() -> Money.of(BigDecimal.ONE, null))
+				.isInstanceOf(NullPointerException.class);
+	}
+
+	@Test
+	void malformedAmountTextIsRejected() {
+		assertThatThrownBy(() -> Money.of("", "UAH")).isInstanceOf(NumberFormatException.class);
+		assertThatThrownBy(() -> Money.of("1,50", "UAH")).isInstanceOf(NumberFormatException.class);
+	}
+
+	@Test
+	void unknownCurrencyCodeIsRejected() {
+		assertThatThrownBy(() -> Money.of("1", "XYZW"))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void minorUnitsRoundTripAtTheEdgesOfTheScale() {
+		assertThat(Money.of("0.01", "UAH").toMinorUnits()).isEqualTo(1);
+		assertThat(Money.ofMinor(1, UAH)).isEqualTo(Money.of("0.01", "UAH"));
+		assertThat(Money.of("999999999999999.99", "UAH").toMinorUnits())
+				.isEqualTo(99_999_999_999_999_999L);
+	}
+
+	@Test
+	void subtractionResultMayBeNegative() {
+		Money result = Money.of("1", "UAH").minus(Money.of("1.01", "UAH"));
+
+		assertThat(result.isNegative()).isTrue();
+		assertThat(result).isEqualTo(Money.of("-0.01", "UAH"));
+	}
+
+	@Test
+	void zeroIsNeitherPositiveNorNegative() {
+		assertThat(Money.zero(UAH).isNegative()).isFalse();
+		assertThat(Money.zero(UAH).isPositive()).isFalse();
+		assertThat(Money.of("0.01", "UAH").isNegative()).isFalse();
+	}
+
+	@Test
+	void subtractionAndComparisonRefuseOtherCurrencies() {
+		Money uah = Money.of("1", "UAH");
+		Money usd = Money.of("1", "USD");
+
+		assertThatThrownBy(() -> uah.minus(usd)).hasMessageContaining("Currency mismatch");
+		assertThatThrownBy(() -> uah.compareTo(usd)).hasMessageContaining("Currency mismatch");
+	}
+
+	@Test
+	void textFormIsAmountAndCode() {
+		assertThat(Money.of("1234.5", "UAH")).hasToString("1234.50 UAH");
+	}
 }

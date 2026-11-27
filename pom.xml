@@ -28,6 +28,8 @@
 		<checkstyle-plugin.version>3.6.0</checkstyle-plugin.version>
 		<checkstyle.version>14.4.0</checkstyle.version>
 		<spotbugs-plugin.version>4.10.5.0</spotbugs-plugin.version>
+		<pitest.version>1.30.2</pitest.version>
+		<pitest-junit5.version>1.2.3</pitest-junit5.version>
 	</properties>
 
 	<dependencies>
@@ -194,6 +196,46 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<!--
+				Mutation testing: mvn test-compile org.pitest:pitest-maven:mutationCoverage
+				Breaks the code in small ways (boundaries, null checks, return values) and checks
+				that the unit tests notice. Not bound to the lifecycle because it is slow.
+			-->
+			<plugin>
+				<groupId>org.pitest</groupId>
+				<artifactId>pitest-maven</artifactId>
+				<version>${pitest.version}</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-junit5-plugin</artifactId>
+						<version>${pitest-junit5.version}</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<targetClasses>
+						<param>io.github.lucyechkaaa.jfinance.common.money.*</param>
+						<param>io.github.lucyechkaaa.jfinance.account.Account</param>
+						<param>io.github.lucyechkaaa.jfinance.user.User</param>
+						<param>io.github.lucyechkaaa.jfinance.transaction.FinancialTransaction</param>
+						<param>io.github.lucyechkaaa.jfinance.transaction.TransferService</param>
+						<param>io.github.lucyechkaaa.jfinance.transaction.export.*</param>
+						<param>io.github.lucyechkaaa.jfinance.exchange.CurrencyConverter</param>
+						<param>io.github.lucyechkaaa.jfinance.exchange.ExchangeRates</param>
+						<param>io.github.lucyechkaaa.jfinance.exchange.CachingExchangeRateProvider</param>
+						<param>io.github.lucyechkaaa.jfinance.audit.AuditEntry*</param>
+					</targetClasses>
+					<excludedTestClasses>
+						<param>*IntegrationTest</param>
+						<param>*ApplicationTests</param>
+					</excludedTestClasses>
+					<timestampedReports>false</timestampedReports>
+					<outputFormats>
+						<param>HTML</param>
+						<param>CSV</param>
+					</outputFormats>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>com.github.spotbugs</groupId>

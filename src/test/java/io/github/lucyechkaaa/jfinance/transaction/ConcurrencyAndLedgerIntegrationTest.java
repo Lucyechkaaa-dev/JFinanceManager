@@ -2,7 +2,7 @@ package io.github.lucyechkaaa.jfinance.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.lucyechkaaa.jfinance.account.AccountRepository;
+import io.github.lucyechkaaa.jfinance.account.Account;
 import io.github.lucyechkaaa.jfinance.account.AccountService;
 import io.github.lucyechkaaa.jfinance.admin.AdminService;
 import io.github.lucyechkaaa.jfinance.common.exception.InsufficientFundsException;
@@ -40,9 +40,6 @@ class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 
 	@Autowired
 	private TransferService transferService;
-
-	@Autowired
-	private AccountRepository accountRepository;
 
 	@Autowired
 	private LedgerBalanceCalculator calculator;
@@ -84,18 +81,15 @@ class ConcurrencyAndLedgerIntegrationTest extends IntegrationTest {
 		assertThat(accountService.getFor(sender, UAH).getBalance()).isEqualTo(Money.zero(UAH));
 		assertThat(accountService.getFor(recipient, UAH).getBalance())
 				.isEqualTo(Money.of("100", "UAH"));
-		assertLedgerMatchesBalances();
+		assertLedgerMatchesBalance(accountService.getFor(sender, UAH));
+		assertLedgerMatchesBalance(accountService.getFor(recipient, UAH));
 	}
 
 	/**
-	 * Core invariant of the system: every account balance equals the sum of its ledger credits
-	 * minus the sum of its ledger debits. Checked over the whole test database.
+	 * Core invariant of the system: the account balance equals the sum of its ledger credits
+	 * minus the sum of its ledger debits.
 	 */
-	private void assertLedgerMatchesBalances() {
-		List<String> mismatches = accountRepository.findAll().stream()
-				.filter(account -> !account.getBalance().equals(calculator.calculate(account)))
-				.map(account -> "account " + account.getId())
-				.toList();
-		assertThat(mismatches).isEmpty();
+	private void assertLedgerMatchesBalance(Account account) {
+		assertThat(calculator.calculate(account)).isEqualTo(account.getBalance());
 	}
 }

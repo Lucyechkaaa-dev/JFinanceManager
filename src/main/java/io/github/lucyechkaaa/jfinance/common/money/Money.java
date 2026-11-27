@@ -58,11 +58,6 @@ public record Money(BigDecimal amount, Currency currency) implements Comparable<
 		return ofMinor(0, currency);
 	}
 
-	/** Rounds an arbitrary-precision amount to the currency scale (banker's rounding). */
-	public static Money rounded(BigDecimal amount, Currency currency) {
-		return new Money(amount.setScale(scaleOf(currency), RoundingMode.HALF_EVEN), currency);
-	}
-
 	/** Amount in minor units (kopiykas, cents), as stored in the database. */
 	public long toMinorUnits() {
 		return amount.movePointRight(scaleOf(currency)).longValueExact();
